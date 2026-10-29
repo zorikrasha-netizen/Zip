@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>PSP Extractor - Multi-CDN</title>
+<style>
+:root{--bg:#0a0a12;--bg2:#151520;--br:#252535;--text:#fff;--dim:#8888a0;--pur:#8b5cf6;--cy:#06b6d4;--ok:#22c55e;--warn:#fbbf24;--err:#ef4444}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:16px;direction:rtl}
+.wrap{max-width:680px;margin:0 auto}
+h1{font-size:20px;margin-bottom:6px;text-align:center;background:linear-gradient(135deg,var(--pur),var(--cy));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.sub{color:var(--dim);font-size:12px;text-align:center;margin-bottom:16px;line-height:1.6}
+.card{background:var(--bg2);border:1px solid var(--br);border-radius:14px;padding:14px;margin-bottom:12px}
+.hidden{display:none!important}
+.status-card{display:flex;gap:12px;align-items:center;padding:14px;border-radius:12px;margin-bottom:12px;transition:all .3s}
+.status-card.info{background:rgba(6,182,212,.08);border:1px solid rgba(6,182,212,.25)}
+.status-card.ok{background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.25)}
+.status-card.err{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3)}
+.status-icon{font-size:22px;flex-shrink:0;line-height:1}
+.spinner{width:20px;height:20px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin .8s linear infinite;color:var(--cy);flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+.status-title{font-size:14px;font-weight:600;margin-bottom:2px}
+.status-sub{font-size:11px;color:var(--dim);line-height:1.4}
+.diag-list{max-height:240px;overflow-y:auto;font-family:ui-monospace,monospace;font-size:10px;direction:ltr;background:#0a0a15;border-radius:8px;padding:10px;margin-bottom:10px}
+.diag-item{padding:4px 0;border-bottom:1px solid #151520;display:flex;gap:8px}
+.diag-item:last-child{border-bottom:none}
+.diag-item .status{flex-shrink:0;width:16px}
+.diag-item .url{flex:1;color:#a5a5b5;word-break:break-all;line-height:1.4}
+.diag-item.ok .url{color:var(--ok)}
+.diag-item.fail .url{color:#fca5a5}
+.diag-item.pending .url{color:var(--dim);font-style:italic}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap}
+.btn{flex:1;min-width:120px;padding:12px;border:none;border-radius:10px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:transform .15s,opacity .15s}
+.btn:active{transform:scale(.97)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-primary{background:linear-gradient(135deg,var(--pur),var(--cy));color:#fff}
+.btn-success{background:var(--ok);color:#fff}
+.btn-secondary{background:transparent;border:1px solid var(--br);color:var(--text)}
+.dropzone{border:2px dashed var(--br);border-radius:12px;padding:36px 20px;text-align:center;cursor:pointer;transition:all .2s}
+.dropzone:active,.dropzone.dragging{border-color:var(--pur);background:rgba(139,92,246,.05)}
+.dropzone .icon{font-size:44px;margin-bottom:10px}
+.dropzone .text{font-size:15px;font-weight:600;margin-bottom:4px}
+.dropzone .hint{font-size:11px;color:var(--dim)}
+.file-info{display:flex;justify-content:space-between;padding:12px;background:#0a0a15;border-radius:10px;margin-top:12px;font-size:13px;gap:8px}
+.file-info .name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#c5c5d5}
+.file-info .size{color:var(--dim);flex-shrink:0}
+.radio-group{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.radio-item{display:flex;align-items:center;gap:10px;padding:12px;background:#0a0a15;border:1px solid var(--br);border-radius:10px;cursor:pointer}
+.radio-item input[type=radio]{display:none}
+.radio-item .dot{width:16px;height:16px;border:2px solid var(--br);border-radius:50%;flex-shrink:0;position:relative;transition:all .15s}
+.radio-item input:checked + .dot{border-color:var(--pur);background:var(--pur)}
+.radio-item input:checked + .dot::after{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:6px;height:6px;background:#fff;border-radius:50%}
+.radio-item .info{flex:1}
+.radio-item .title{font-size:13px;font-weight:600;margin-bottom:2px}
+.radio-item .desc{font-size:11px;color:var(--dim);line-height:1.4}
+.radio-item.selected{border-color:var(--pur);background:rgba(139,92,246,.08)}
+.progress{margin-top:12px}
+.progress-label{font-size:12px;margin-bottom:6px;color:#c5c5d5;min-height:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.progress-bar{height:8px;background:#0a0a15;border-radius:100px;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--pur),var(--cy));width:0%;transition:width .3s}
+.stats{display:flex;justify-content:space-between;margin-top:6px;font-size:11px;color:var(--dim)}
+.card-title{font-size:14px;font-weight:700;margin-bottom:10px;color:#c5c5d5}
+.error{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#fca5a5;padding:12px;border-radius:10px;font-size:12px;margin-top:10px;line-height:1.5;white-space:pre-wrap;display:none}
+.error.show{display:block}
+.warn-box{background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.25);border-radius:10px;padding:10px;font-size:11px;line-height:1.6;color:#fcd34d;margin-top:8px}
+.manual-file{padding:10px;background:#0a0a15;border-radius:8px;margin-bottom:8px;font-size:12px}
+.manual-file input{width:100%;margin-top:6px;font-size:11px}
+.manual-file label{font-weight:600;color:#c5c5d5}
+.manual-file .hint{font-size:10px;color:var(--dim);margin-top:3px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🎮 مستخرج PSP من 7z</h1>
+  <p class="sub">يجرب 8+ CDN تلقائياً — يحتفظ بملفات PSP فقط (~50 ميجا)</p>
+
+  <div id="status-card" class="status-card info">
+    <div class="spinner"></div>
+    <div style="flex:1">
+      <div class="status-title" id="status-title">جاري تحميل المكتبات...</div>
+      <div class="status-sub" id="status-sub">محاولة CDN واحد تلو الآخر</div>
+    </div>
+  </div>
+
+  <div id="diag-card" class="card hidden">
+    <div class="card-title">📋 سجل المحاولات</div>
+    <div id="diag-list" class="diag-list"></div>
+    <div class="btn-row">
+      <button id="btn-retry" class="btn btn-primary">🔄 إعادة المحاولة</button>
+      <button id="btn-manual-toggle" class="btn btn-secondary">📤 تحميل يدوي</button>
+    </div>
+  </div>
+
+  <div id="manual-card" class="card hidden">
+    <div class="card-title">📤 تحميل يدوي للمكتبات</div>
+    <div class="warn-box" style="margin-bottom:10px">
+      حمّل الملفات من جهاز/شبكة أخرى ثم ارفعها هنا. المواقع التالية قد تكون متاحة:
+      <br>• <b>cdnjs.cloudflare.com</b>
+      <br>• <b>unpkg.com</b>
+      <br>• <b>cdn.jsdelivr.net</b>
+    </div>
+    <div class="manual-file">
+      <label>libarchive.min.js</label>
+      <input type="file" id="file-libarchive" accept=".js">
+      <div class="hint">عادة من: cdnjs.cloudflare.com/ajax/libs/libarchive.js/2.0.2/libarchive.min.js</div>
+    </div>
+    <div class="manual-file">
+      <label>worker-bundle.js</label>
+      <input type="file" id="file-worker" accept=".js">
+      <div class="hint">عادة من: cdnjs.cloudflare.com/ajax/libs/libarchive.js/2.0.2/worker-bundle.js</div>
+    </div>
+    <div class="manual-file">
+      <label>jszip.min.js</label>
+      <input type="file" id="file-jszip" accept=".js">
+      <div class="hint">عادة من: cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js</div>
+    </div>
+    <button id="btn-manual-apply" class="btn btn-primary" style="width:100%;margin-top:8px">✓ تطبيق</button>
+  </div>
+
+  <div id="app" class="hidden">
+    <div class="card">
+      <div class="dropzone" id="dropzone">
+        <div class="icon">📁</div>
+        <div class="text">اختر ملف 4.2.3.7z</div>
+        <div class="hint">289 ميجا مقبول — يُقرأ محلياً فقط</div>
+      </div>
+      <input type="file" id="file-input" accept=".7z,.zip" hidden>
+      <div id="file-info" class="file-info hidden">
+        <span class="name" id="file-name"></span>
+        <span class="size" id="file-size"></span>
+      </div>
+    </div>
+
+    <div id="options-card" class="card hidden">
+      <div class="card-title">ماذا تستخرج؟</div>
+      <div class="radio-group">
+        <label class="radio-item selected">
+          <input type="radio" name="mode" value="psp" checked>
+          <span class="dot"></span>
+          <div class="info">
+            <div class="title">✓ PSP فقط (موصى)</div>
+            <div class="desc">~50 ميجا — محرك PPSSPP فقط. سريع وآمن.</div>
+          </div>
+        </label>
+        <label class="radio-item">
+          <input type="radio" name="mode" value="all">
+          <span class="dot"></span>
+          <div class="info">
+            <div class="title">⚠ كل الملفات (289 ميجا)</div>
+            <div class="desc">كل النوى — بطيء جداً، قد يفشل بسبب الذاكرة</div>
+          </div>
+        </label>
+      </div>
+      <div class="warn-box">⏱️ الاستخراج 3-10 دقائق — اترك التاب مفتوحاً</div>
+    </div>
+
+    <div id="progress-card" class="card hidden">
+      <div class="progress">
+        <div class="progress-label" id="progress-label">جاهز</div>
+        <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+        <div class="stats">
+          <span id="stat-files">0 ملف</span>
+          <span id="stat-size">0 MB</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="error-card" class="error"></div>
+
+    <div class="btn-row" style="margin-bottom:12px">
+      <button id="btn-extract" class="btn btn-primary" disabled style="width:100%">📦 استخراج</button>
+      <button id="btn-download" class="btn btn-success hidden" style="width:100%">⬇ تحميل ZIP</button>
+      <button id="btn-reset" class="btn btn-secondary hidden" style="width:100%">🔄 ملف آخر</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+
+/* ============ CDN Sources ============ */
+const LIBARCHIVE_SOURCES = [
+  'https://cdnjs.cloudflare.com/ajax/libs/libarchive.js/2.0.2/libarchive.min.js',
+  'https://unpkg.com/libarchive.js@2.0.2/dist/libarchive.js',
+  'https://fastly.jsdelivr.net/npm/libarchive.js@2.0.2/dist/libarchive.js',
+  'https://gcore.jsdelivr.net/npm/libarchive.js@2.0.2/dist/libarchive.js',
+  'https://testingcf.jsdelivr.net/npm/libarchive.js@2.0.2/dist/libarchive.js',
+  'https://cdn.statically.io/gh/nika-begiashvili/libarchivejs/master/dist/libarchive.js',
+  'https://rawcdn.githack.com/nika-begiashvili/libarchivejs/master/dist/libarchive.js',
+  'https://cdn.jsdelivr.net/npm/libarchive.js@2.0.2/dist/libarchive.js',
+];
+
+const JSZIP_SOURCES = [
+  'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',
+  'https://unpkg.com/jszip@3.10.1/dist/jszip.min.js',
+  'https://fastly.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js',
+  'https://gcore.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js',
+  'https://testingcf.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js',
+  'https://cdn.statically.io/gh/Stuk/jszip/v3.10.1/dist/jszip.min.js',
+  'https://rawcdn.githack.com/Stuk/jszip/v3.10.1/dist/jszip.min.js',
+  'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js',
+];
+
+const WORKER_SOURCES = [
+  'https://cdnjs.cloudflare.com/ajax/libs/libarchive.js/2.0.2/worker-bundle.js',
+  'https://unpkg.com/libarchive.js@2.0.2/dist/worker-bundle.js',
+  'https://fastly.jsdelivr.net/npm/libarchive.js@2.0.2/dist/worker-bundle.js',
+  'https://gcore.jsdelivr.net/npm/libarchive.js@2.0.2/dist/worker-bundle.js',
+  'https://testingcf.jsdelivr.net/npm/libarchive.js@2.0.2/dist/worker-bundle.js',
+  'https://cdn.statically.io/gh/nika-begiashvili/libarchivejs/master/dist/worker-bundle.js',
+  'https://rawcdn.githack.com/nika-begiashvili/libarchivejs/master/dist/worker-bundle.js',
+];
+
+/* ============ PSP File Patterns ============ */
+const PSP_CORE_FILES = [
+  'loader.js',
+  'emulator.min.js',
+  'emulator.min.css',
+];
+const PSP_PSP_FILES = [
+  'ppsspp_libretro.js',
+  'ppsspp_libretro.wasm',
+];
+
+function isPSPFile(path) {
+  const p = String(path).replace(/\\/g, '/').toLowerCase();
+  const filename = p.split('/').pop();
+  if (PSP_PSP_FILES.includes(filename) && p.includes('cores/psp/')) return true;
+  if (PSP_CORE_FILES.includes(filename)) {
+    return p.includes('data/') || !p.includes('/');
+  }
+  return false;
+}
+
+/* ============ Diagnostic UI ============ */
+const diagEntries = new Map();
+
+function diagAdd(id, label, url) {
+  const list = $('diag-list');
+  const el = document.createElement('div');
+  el.className = 'diag-item pending';
+  el.id = 'diag-' + id;
+  el.innerHTML = `<span class="status">⏳</span><span class="url" title="${url}">${label}: ${shorten(url)}</span>`;
+  list.appendChild(el);
+  diagEntries.set(id, el);
+}
+
+function diagUpdate(id, status, detail) {
+  const el = diagEntries.get(id);
+  if (!el) return;
+  if (status === 'ok') { el.className = 'diag-item ok'; el.querySelector('.status').textContent = '✓'; }
+  else if (status === 'fail') { el.className = 'diag-item fail'; el.querySelector('.status').textContent = '✗'; if (detail) el.querySelector('.url').textContent += ' — ' + detail; }
+}
+
+function shorten(url) {
+  try {
+    const u = new URL(url);
+    return u.hostname + u.pathname.replace(/^\/[^/]+\/[^/]+\//, '/.../').slice(0, 45);
+  } catch { return url.slice(0, 50); }
+}
+
+function showStatus(type, title, sub) {
+  const card = $('status-card');
+  card.className = 'status-card ' + type;
+  const iconHtml = type === 'info' ? '<div class="spinner"></div>' :
+                   type === 'ok' ? '<div class="status-icon">✅</div>' :
+                   '<div class="status-icon">❌</div>';
+  card.innerHTML = `${iconHtml}<div style="flex:1"><div class="status-title">${title}</div><div class="status-sub">${sub}</div></div>`;
+}
+
+/* ============ Loaders ============ */
+function loadScript(url, timeout = 8000) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = url;
+    s.async = false;
+    const timer = setTimeout(() => {
+      s.onload = s.onerror = null;
+      s.remove();
+      reject(new Error('timeout'));
+    }, timeout);
+    s.onload = () => { clearTimeout(timer); resolve(); };
+    s.onerror = () => { clearTimeout(timer); s.remove(); reject(new Error('load error')); };
+    document.head.appendChild(s);
+  });
+}
+
+async function tryLoadScript(libName, sources, checkFn, idPrefix) {
+  for (let i = 0; i < sources.length; i++) {
+    const url = sources[i];
+    const id = idPrefix + '-' + i;
+    diagAdd(id, libName, url);
+    $('status-sub').textContent = `${libName}: محاولة ${i+1}/${sources.length}`;
+    try {
+      await loadScript(url, 8000);
+      if (checkFn()) {
+        diagUpdate(id, 'ok');
+        return { ok: true, url };
+      }
+      diagUpdate(id, 'fail', 'loaded but undefined');
+    } catch (e) {
+      diagUpdate(id, 'fail', e.message);
+    }
+  }
+  return { ok: false };
+}
+
+async function tryFetchBlob(libName, sources, idPrefix) {
+  for (let i = 0; i < sources.length; i++) {
+    const url = sources[i];
+    const id = idPrefix + '-' + i;
+    diagAdd(id, libName, url);
+    $('status-sub').textContent = `${libName}: محاولة ${i+1}/${sources.length}`;
+    try {
+      const res = await fetch(url, { mode: 'cors' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const blob = await res.blob();
+      if (blob.size < 1000) throw new Error('too small (' + blob.size + 'b)');
+      const blobUrl = URL.createObjectURL(blob);
+      diagUpdate(id, 'ok');
+      return { ok: true, blobUrl };
+    } catch (e) {
+      diagUpdate(id, 'fail', e.message);
+    }
+  }
+  return { ok: false };
+}
+
+/* ============ Main Loader ============ */
+let libsReady = false;
+let workerBlobUrl = null;
+
+async function loadAllLibraries() {
+  showStatus('info', 'جاري تحميل المكتبات...', 'محاولة CDNs متعددة');
+  $('diag-list').innerHTML = '';
+  diagEntries.clear();
+  $('diag-card').classList.remove('hidden');
+
+  // 1. JSZip
+  if (typeof JSZip === 'undefined') {
+    const r = await tryLoadScript('JSZip', JSZIP_SOURCES, () => typeof JSZip !== 'undefined', 'jszip');
+    if (!r.ok) {
+      showStatus('err', '❌ فشل تحميل JSZip', 'كل المصادر محجوبة');
+      $('btn-retry').classList.remove('hidden');
+      $('btn-manual-toggle').classList.remove('hidden');
+      return false;
+    }
+  }
+
+  // 2. libarchive
+  if (typeof Archive === 'undefined') {
+    const r = await tryLoadScript('libarchive', LIBARCHIVE_SOURCES, () => typeof Archive !== 'undefined', 'lib');
+    if (!r.ok) {
+      showStatus('err', '❌ فشل تحميل libarchive.js', 'كل المصادر محجوبة');
+      $('btn-retry').classList.remove('hidden');
+      $('btn-manual-toggle').classList.remove('hidden');
+      return false;
+    }
+  }
+
+  // 3. Worker
+  if (!workerBlobUrl) {
+    const r = await tryFetchBlob('worker', WORKER_SOURCES, 'worker');
+    if (!r.ok) {
+      showStatus('err', '❌ فشل تحميل worker-bundle.js', 'كل المصادر محجوبة');
+      $('btn-retry').classList.remove('hidden');
+      $('btn-manual-toggle').classList.remove('hidden');
+      return false;
+    }
+    workerBlobUrl = r.blobUrl;
+  }
+
+  // Init Archive with worker
+  try {
+    Archive.init({ workerUrl: workerBlobUrl });
+    console.log('[PSP] Archive ready');
+  } catch (e) {
+    console.warn('[PSP] Archive.init:', e.message);
+  }
+
+  showStatus('ok', '✓ المكتبات جاهزة', 'JSZip + libarchive محمّلان');
+  $('diag-card').classList.add('hidden');
+  $('app').classList.remove('hidden');
+  libsReady = true;
+  $('btn-extract').disabled = false;
+  return true;
+}
+
+/* ============ Manual load fallback ============ */
+async function applyManualLibraries() {
+  const lib = $('file-libarchive').files[0];
+  const wrk = $('file-worker').files[0];
+  const zip = $('file-jszip').files[0];
+
+  if (!lib || !wrk || !zip) {
+    alert('اختر الملفات الثلاثة');
+    return;
+  }
+
+  try {
+    // Load JSZip
+    const zipText = await zip.text();
+    (0, eval)(zipText);
+    if (typeof JSZip === 'undefined') throw new Error('JSZip غير صالح');
+
+    // Load libarchive
+    const libText = await lib.text();
+    (0, eval)(libText);
+    if (typeof Archive === 'undefined') throw new Error('libarchive غير صالح');
+
+    // Worker as blob
+    const workerBlob = new Blob([await wrk.text()], { type: 'application/javascript' });
+    workerBlobUrl = URL.createObjectURL(workerBlob);
+
+    Archive.init({ workerUrl: workerBlobUrl });
+
+    showStatus('ok', '✓ المكتبات جاهزة (يدوي)', 'JSZip + libarchive من ملفاتك');
+    $('manual-card').classList.add('hidden');
+    $('diag-card').classList.add('hidden');
+    $('app').classList.remove('hidden');
+    libsReady = true;
+    $('btn-extract').disabled = false;
+  } catch (e) {
+    alert('فشل التطبيق: ' + e.message);
+  }
+}
+
+/* ============ App Logic ============ */
+let selectedFile = null, resultUrl = null, resultName = '';
+let totalFound = 0, totalSize = 0;
+
+function formatBytes(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
+  if (b < 1073741824) return (b/1048576).toFixed(1) + ' MB';
+  return (b/1073741824).toFixed(2) + ' GB';
+}
+
+function setProgress(pct, label) {
+  $('progress-card').classList.remove('hidden');
+  $('progress-fill').style.width = Math.min(100, pct) + '%';
+  if (label !== undefined) $('progress-label').textContent = label;
+}
+
+function updateStats() {
+  $('stat-files').textContent = totalFound + ' ملف';
+  $('stat-size').textContent = formatBytes(totalSize);
+}
+
+function showError(msg) {
+  const e = $('error-card');
+  e.textContent = msg;
+  e.classList.add('show');
+}
+
+function hideError() {
+  $('error-card').classList.remove('show');
+}
+
+function resetUI() {
+  if (resultUrl) URL.revokeObjectURL(resultUrl);
+  resultUrl = null; resultName = ''; selectedFile = null;
+  totalFound = 0; totalSize = 0;
+  $('file-input').value = '';
+  $('file-info').classList.add('hidden');
+  $('options-card').classList.add('hidden');
+  $('progress-card').classList.add('hidden');
+  $('progress-fill').style.width = '0%';
+  $('btn-extract').classList.remove('hidden');
+  $('btn-extract').disabled = !libsReady;
+  $('btn-extract').textContent = '📦 استخراج';
+  $('btn-download').classList.add('hidden');
+  $('btn-reset').classList.add('hidden');
+  updateStats();
+  hideError();
+}
+
+function onFileSelected(file) {
+  if (!file) return;
+  resetUI();
+  selectedFile = file;
+
+  file.slice(0, 6).arrayBuffer().then(buf => {
+    const h = new Uint8Array(buf);
+    const is7z = h[0]===0x37 && h[1]===0x7A && h[2]===0xBC && h[3]===0xAF && h[4]===0x27 && h[5]===0x1C;
+    const isZip = h[0]===0x50 && h[1]===0x4B;
+    if (!is7z && !isZip) {
+      showError('⚠ الملف ليس 7z أو ZIP صالح');
+      selectedFile = null;
+      return;
+    }
+    $('file-name').textContent = file.name;
+    $('file-size').textContent = formatBytes(file.size);
+    $('file-info').classList.remove('hidden');
+    $('options-card').classList.remove('hidden');
+    $('btn-extract').disabled = !libsReady;
+  }).catch(e => showError('فشل قراءة الملف: ' + e.message));
+}
+
+/* ============ Extract ============ */
+async function doExtract() {
+  if (!selectedFile || !libsReady) return;
+  const mode = document.querySelector('input[name="mode"]:checked').value;
+  $('btn-extract').disabled = true;
+  $('btn-extract').classList.add('hidden');
+  hideError();
+  totalFound = 0; totalSize = 0;
+  updateStats();
+
+  try {
+    setProgress(5, '📂 فتح الأرشيف...');
+    const archive = await Archive.open(selectedFile);
+
+    setProgress(8, '📄 فحص الملفات...');
+    const zip = new JSZip();
+    let scanned = 0;
+
+    await archive.extractFiles((item) => {
+      const path = item.path || '';
+      const file = item.file;
+      if (!path || !file) return;
+      scanned++;
+
+      if (scanned % 10 === 0) {
+        setProgress(8 + Math.min(60, scanned / 20), `فحص ${scanned} — وجدت ${totalFound}`);
+      }
+
+      if (mode === 'psp' && !isPSPFile(path)) return;
+
+      try {
+        zip.file(path, file);
+        totalFound++;
+        totalSize += file.size || 0;
+        updateStats();
+        setProgress(8 + Math.min(60, scanned / 20), `✓ ${path.split('/').pop()}`);
+      } catch (e) { console.warn('add:', path, e); }
+    });
+
+    if (totalFound === 0) {
+      throw new Error(
+        mode === 'psp'
+          ? `لم أجد ملفات PSP!\nتم فحص ${scanned} ملف.\n\nجرّب "كل الملفات" لرؤية المحتوى الفعلي.`
+          : 'لم يُستخرج أي ملف.'
+      );
+    }
+
+    setProgress(72, `🗜 ضغط ${totalFound} ملف...`);
+    const blob = await zip.generateAsync(
+      { type: 'blob', compression: 'STORE', platform: 'UNIX' },
+      meta => setProgress(72 + Math.round(meta.percent * 0.26), `🗜 ${Math.round(meta.percent)}%`)
+    );
+
+    resultUrl = URL.createObjectURL(blob);
+    resultName = selectedFile.name.replace(/\.(7z|zip)$/i, '') + (mode === 'psp' ? '-PSP' : '') + '.zip';
+
+    setProgress(100, `✅ ${totalFound} ملف — ${formatBytes(blob.size)}`);
+    updateStats();
+    $('btn-download').classList.remove('hidden');
+    $('btn-reset').classList.remove('hidden');
+
+  } catch (e) {
+    console.error('[extract]', e);
+    setProgress(0, '');
+    $('progress-card').classList.add('hidden');
+    showError('❌ ' + (e.message || 'خطأ غير معروف'));
+    $('btn-extract').classList.remove('hidden');
+    $('btn-extract').disabled = false;
+    $('btn-extract').textContent = '📦 إعادة المحاولة';
+  }
+}
+
+/* ============ Events ============ */
+$('dropzone').addEventListener('click', () => { if (libsReady) $('file-input').click(); });
+$('dropzone').addEventListener('dragover', e => { e.preventDefault(); $('dropzone').classList.add('dragging'); });
+$('dropzone').addEventListener('dragleave', () => $('dropzone').classList.remove('dragging'));
+$('dropzone').addEventListener('drop', e => {
+  e.preventDefault(); $('dropzone').classList.remove('dragging');
+  if (!libsReady) return;
+  const f = e.dataTransfer?.files?.[0];
+  if (f) onFileSelected(f);
+});
+$('file-input').addEventListener('change', e => {
+  const f = e.target.files?.[0];
+  if (f) onFileSelected(f);
+});
+
+document.querySelectorAll('.radio-item input[type=radio]').forEach(r => {
+  r.addEventListener('change', () => {
+    document.querySelectorAll('.radio-item').forEach(el => el.classList.remove('selected'));
+    r.closest('.radio-item').classList.add('selected');
+  });
+});
+
+$('btn-extract').addEventListener('click', doExtract);
+
+$('btn-download').addEventListener('click', () => {
+  if (!resultUrl) return;
+  const a = document.createElement('a');
+  a.href = resultUrl;
+  a.download = resultName;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+});
+
+$('btn-reset').addEventListener('click', resetUI);
+
+$('btn-retry').addEventListener('click', async () => {
+  $('btn-retry').classList.add('hidden');
+  $('btn-manual-toggle').classList.add('hidden');
+  $('diag-card').classList.add('hidden');
+  await loadAllLibraries();
+});
+
+$('btn-manual-toggle').addEventListener('click', () => {
+  $('manual-card').classList.remove('hidden');
+});
+
+$('btn-manual-apply').addEventListener('click', applyManualLibraries);
+
+/* ============ Boot ============ */
+(async () => {
+  console.log('[PSP] booting | protocol:', location.protocol);
+  if (location.protocol === 'file:') {
+    console.warn('[PSP] file:// mode — قد تفشل بعض الطلبات');
+  }
+  try {
+    await loadAllLibraries();
+  } catch (e) {
+    console.error('[PSP] boot error:', e);
+    showStatus('err', '❌ خطأ في التحميل', e.message);
+  }
+})();
+</script>
+</body>
+</html>
